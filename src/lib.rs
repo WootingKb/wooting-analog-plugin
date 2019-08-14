@@ -113,6 +113,7 @@ impl DeviceImplementation for WootingOne {
             #[cfg(all(unix, not(target_os = "macos")))]
             usage_page: 0,
             #[cfg(windows)]
+            usage_page: 0xFFFF,
             #[cfg(all(unix, target_os = "macos"))]
             usage_page: 0xFFFF,
 
@@ -137,6 +138,7 @@ impl DeviceImplementation for WootingTwo {
             #[cfg(all(unix, not(target_os = "macos")))]
             usage_page: 0,
             #[cfg(windows)]
+            usage_page: 0xFFFF,
             #[cfg(all(unix, target_os = "macos"))]
             usage_page: 0xFFFF,
 
