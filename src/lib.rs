@@ -109,7 +109,13 @@ impl DeviceImplementation for WootingOne {
         DeviceHardwareID {
             vid: 0x03EB,
             pid: 0xFF01,
+
+            #[cfg(all(unix, not(target_os = "macos")))]
             usage_page: 0,
+            #[cfg(windows)]
+            #[cfg(all(unix, target_os = "macos"))]
+            usage_page: 0xFFFF,
+
             interface_n: 6,
         }
     }
@@ -127,7 +133,13 @@ impl DeviceImplementation for WootingTwo {
         DeviceHardwareID {
             vid: 0x03EB,
             pid: 0xFF02,
+
+            #[cfg(all(unix, not(target_os = "macos")))]
             usage_page: 0,
+            #[cfg(windows)]
+            #[cfg(all(unix, target_os = "macos"))]
+            usage_page: 0xFFFF,
+
             interface_n: 6,
         }
     }
