@@ -1,17 +1,17 @@
 #[macro_use]
 extern crate log;
 #[macro_use]
-extern crate analog_sdk_common;
+extern crate wooting_analog_sdk_common;
 extern crate hidapi;
 #[macro_use]
 extern crate objekt;
 
-use analog_sdk_common::*;
 use hidapi::{HidApi, HidDevice, HidDeviceInfo};
 use log::{error, info};
 use std::collections::HashMap;
 use std::os::raw::{c_float, c_int, c_ushort};
 use std::str;
+use wooting_analog_sdk_common::*;
 
 extern crate env_logger;
 
@@ -88,7 +88,7 @@ trait DeviceImplementation: objekt::Clone {
 
     /// Get the unique device ID from the given `device_info`
     fn get_device_id(&self, device_info: &HidDeviceInfo) -> DeviceID {
-        analog_sdk_common::generate_device_id(
+        wooting_analog_sdk_common::generate_device_id(
             device_info
                 .serial_number
                 .as_ref()
