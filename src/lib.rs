@@ -361,6 +361,8 @@ impl Plugin for WootingPlugin {
             return AnalogSDKResult::NoDevices.into();
         }
 
+        //If the Device ID is 0 we want to go through all the connected devices
+        //and combine the analog values
         if device_id == 0 {
             let mut analog: f32 = -1.0;
             let mut error: AnalogSDKResult = AnalogSDKResult::Ok;
@@ -389,7 +391,9 @@ impl Plugin for WootingPlugin {
             } else {
                 analog.into()
             }
-        } else {
+        } else
+        //If the device id is not 0, we try and find a connected device with that ID and read from it
+        {
             let mut disconnected = false;
             let ret = match self.devices.get_mut(&device_id) {
                 Some(device) => match device.read_analog(code).into() {
@@ -424,6 +428,8 @@ impl Plugin for WootingPlugin {
             return AnalogSDKResult::NoDevices.into();
         }
 
+        //If the Device ID is 0 we want to go through all the connected devices
+        //and combine the analog values
         if device_id == 0 {
             let mut analog: HashMap<c_ushort, c_float> = HashMap::new();
             let mut any_read = false;
@@ -454,7 +460,9 @@ impl Plugin for WootingPlugin {
             } else {
                 Ok(analog).into()
             }
-        } else {
+        } else
+        //If the device id is not 0, we try and find a connected device with that ID and read from it
+        {
             let mut disconnected = false;
             let ret = match self.devices.get_mut(&device_id) {
                 Some(device) => match device.read_full_buffer(max_length).into() {
