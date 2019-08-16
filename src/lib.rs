@@ -111,12 +111,10 @@ impl DeviceImplementation for WootingOne {
             vid: 0x03EB,
             pid: 0xFF01,
 
-            #[cfg(all(unix, not(target_os = "macos")))]
+            #[cfg(linux)]
             usage_page: 0,
-            #[cfg(windows)]
-            usage_page: 0xFFFF,
-            #[cfg(all(unix, target_os = "macos"))]
-            usage_page: 0xFFFF,
+            #[cfg(not(linux))]
+            usage_page: 0xFF54,
 
             interface_n: 6,
         }
@@ -136,12 +134,10 @@ impl DeviceImplementation for WootingTwo {
             vid: 0x03EB,
             pid: 0xFF02,
 
-            #[cfg(all(unix, not(target_os = "macos")))]
+            #[cfg(linux)]
             usage_page: 0,
-            #[cfg(windows)]
-            usage_page: 0xFFFF,
-            #[cfg(all(unix, target_os = "macos"))]
-            usage_page: 0xFFFF,
+            #[cfg(not(linux))]
+            usage_page: 0xFF54,
 
             interface_n: 6,
         }
