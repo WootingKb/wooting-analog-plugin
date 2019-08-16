@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
 #[macro_use]
-extern crate wooting_analog_sdk_common;
+extern crate wooting_analog_plugin_dev;
 extern crate hidapi;
 #[macro_use]
 extern crate objekt;
@@ -11,7 +11,8 @@ use log::{error, info};
 use std::collections::HashMap;
 use std::os::raw::{c_float, c_int, c_ushort};
 use std::str;
-use wooting_analog_sdk_common::*;
+use wooting_analog_plugin_dev::wooting_analog_common::*;
+use wooting_analog_plugin_dev::*;
 
 extern crate env_logger;
 
@@ -69,7 +70,7 @@ trait DeviceImplementation: objekt::Clone {
         if let Err(e) = res {
             error!("Failed to read buffer: {}", e);
 
-            return AnalogSDKResult::DeviceDisconnected.into();
+            return WootingAnalogResult::DeviceDisconnected.into();
         }
         //println!("{:?}", buffer);
         Ok(buffer
@@ -88,7 +89,7 @@ trait DeviceImplementation: objekt::Clone {
 
     /// Get the unique device ID from the given `device_info`
     fn get_device_id(&self, device_info: &HidDeviceInfo) -> DeviceID {
-        wooting_analog_sdk_common::generate_device_id(
+        wooting_analog_plugin_dev::generate_device_id(
             device_info
                 .serial_number
                 .as_ref()
@@ -216,9 +217,6 @@ pub struct WootingPlugin {
     hid_api: Option<HidApi>,
 }
 
-unsafe impl Send for WootingPlugin {}
-unsafe impl Sync for WootingPlugin {}
-
 const PLUGIN_NAME: &str = "Test Plugin";
 impl WootingPlugin {
     fn new() -> Self {
@@ -237,7 +235,7 @@ impl WootingPlugin {
         }
     }
 
-    fn init_device(&mut self) -> AnalogSDKResult {
+    fn init_device(&mut self) -> WootingAnalogResult {
         self.hid_api.as_mut().map(|api| api.refresh_devices());
 
         match &self.hid_api {
@@ -266,7 +264,7 @@ impl WootingPlugin {
                                 }
                                 Err(e) => {
                                     error!("Error opening HID Device: {}", e);
-                                    //return AnalogSDKResult::Failure.into();
+                                    //return WootingAnalogResult::Failure.into();
                                 }
                             }
                         }
@@ -274,16 +272,16 @@ impl WootingPlugin {
                 }
 
                 if self.devices.is_empty() {
-                    return AnalogSDKResult::NoDevices;
+                    return WootingAnalogResult::NoDevices;
                 }
 
                 //debug!("Finished with devices");
             }
             None => {
-                return AnalogSDKResult::UnInitialized;
+                return WootingAnalogResult::UnInitialized;
             }
         }
-        AnalogSDKResult::Ok
+        WootingAnalogResult::Ok
     }
 
     fn handle_device_event(&self, device: &Device, cb_type: DeviceEventType) {
@@ -296,8 +294,8 @@ impl Plugin for WootingPlugin {
         Ok(PLUGIN_NAME).into()
     }
 
-    fn initialise(&mut self) -> AnalogSDKResult {
-        //return AnalogSDKResult::Failure;
+    fn initialise(&mut self) -> WootingAnalogResult {
+        //return WootingAnalogResult::Failure;
         //env_logger::init();
         match HidApi::new() {
             Ok(api) => {
@@ -305,7 +303,7 @@ impl Plugin for WootingPlugin {
             }
             Err(e) => {
                 error!("Error: {}", e);
-                return AnalogSDKResult::Failure;
+                return WootingAnalogResult::Failure;
             }
         }
         let ret = self.init_device();
@@ -333,48 +331,48 @@ impl Plugin for WootingPlugin {
     fn set_device_event_cb(
         &mut self,
         cb: extern "C" fn(DeviceEventType, DeviceInfoPointer),
-    ) -> AnalogSDKResult {
+    ) -> WootingAnalogResult {
         if !self.initialised {
-            return AnalogSDKResult::UnInitialized;
+            return WootingAnalogResult::UnInitialized;
         }
         debug!("disconnected cb set");
         self.device_event_cb = Some(cb);
-        AnalogSDKResult::Ok
+        WootingAnalogResult::Ok
     }
 
-    fn clear_device_event_cb(&mut self) -> AnalogSDKResult {
+    fn clear_device_event_cb(&mut self) -> WootingAnalogResult {
         if !self.initialised {
-            return AnalogSDKResult::UnInitialized;
+            return WootingAnalogResult::UnInitialized;
         }
 
         debug!("disconnected cb cleared");
         self.device_event_cb = None;
-        AnalogSDKResult::Ok
+        WootingAnalogResult::Ok
     }
 
     fn read_analog(&mut self, code: u16, device_id: DeviceID) -> SDKResult<f32> {
         if !self.initialised {
-            return AnalogSDKResult::UnInitialized.into();
+            return WootingAnalogResult::UnInitialized.into();
         }
 
         if self.devices.is_empty() {
-            return AnalogSDKResult::NoDevices.into();
+            return WootingAnalogResult::NoDevices.into();
         }
 
         //If the Device ID is 0 we want to go through all the connected devices
         //and combine the analog values
         if device_id == 0 {
             let mut analog: f32 = -1.0;
-            let mut error: AnalogSDKResult = AnalogSDKResult::Ok;
+            let mut error: WootingAnalogResult = WootingAnalogResult::Ok;
             let mut dc = Vec::new();
             for (id, device) in self.devices.iter_mut() {
                 match device.read_analog(code).into() {
                     Ok(val) => {
                         analog = analog.max(val);
                     }
-                    Err(AnalogSDKResult::DeviceDisconnected) => {
+                    Err(WootingAnalogResult::DeviceDisconnected) => {
                         dc.push(*id);
-                        error = AnalogSDKResult::DeviceDisconnected;
+                        error = WootingAnalogResult::DeviceDisconnected;
                     }
                     Err(e) => {
                         error = e;
@@ -398,13 +396,13 @@ impl Plugin for WootingPlugin {
             let ret = match self.devices.get_mut(&device_id) {
                 Some(device) => match device.read_analog(code).into() {
                     Ok(val) => val.into(),
-                    Err(AnalogSDKResult::DeviceDisconnected) => {
+                    Err(WootingAnalogResult::DeviceDisconnected) => {
                         disconnected = true;
-                        AnalogSDKResult::DeviceDisconnected.into()
+                        WootingAnalogResult::DeviceDisconnected.into()
                     }
                     Err(e) => Err(e).into(),
                 },
-                None => AnalogSDKResult::NoDevices.into(),
+                None => WootingAnalogResult::NoDevices.into(),
             };
             if disconnected {
                 let dev = self.devices.remove(&device_id).unwrap();
@@ -421,11 +419,11 @@ impl Plugin for WootingPlugin {
         device_id: DeviceID,
     ) -> SDKResult<HashMap<c_ushort, c_float>> {
         if !self.initialised {
-            return AnalogSDKResult::UnInitialized.into();
+            return WootingAnalogResult::UnInitialized.into();
         }
 
         if self.devices.is_empty() {
-            return AnalogSDKResult::NoDevices.into();
+            return WootingAnalogResult::NoDevices.into();
         }
 
         //If the Device ID is 0 we want to go through all the connected devices
@@ -433,7 +431,7 @@ impl Plugin for WootingPlugin {
         if device_id == 0 {
             let mut analog: HashMap<c_ushort, c_float> = HashMap::new();
             let mut any_read = false;
-            let mut error: AnalogSDKResult = AnalogSDKResult::Ok;
+            let mut error: WootingAnalogResult = WootingAnalogResult::Ok;
             let mut dc = Vec::new();
             for (id, device) in self.devices.iter_mut() {
                 match device.read_full_buffer(max_length).into() {
@@ -441,9 +439,9 @@ impl Plugin for WootingPlugin {
                         any_read = true;
                         analog.extend(val);
                     }
-                    Err(AnalogSDKResult::DeviceDisconnected) => {
+                    Err(WootingAnalogResult::DeviceDisconnected) => {
                         dc.push(*id);
-                        error = AnalogSDKResult::DeviceDisconnected;
+                        error = WootingAnalogResult::DeviceDisconnected;
                     }
                     Err(e) => {
                         error = e;
@@ -467,13 +465,13 @@ impl Plugin for WootingPlugin {
             let ret = match self.devices.get_mut(&device_id) {
                 Some(device) => match device.read_full_buffer(max_length).into() {
                     Ok(val) => Ok(val).into(),
-                    Err(AnalogSDKResult::DeviceDisconnected) => {
+                    Err(WootingAnalogResult::DeviceDisconnected) => {
                         disconnected = true;
-                        AnalogSDKResult::DeviceDisconnected.into()
+                        WootingAnalogResult::DeviceDisconnected.into()
                     }
                     Err(e) => Err(e).into(),
                 },
-                None => AnalogSDKResult::NoDevices.into(),
+                None => WootingAnalogResult::NoDevices.into(),
             };
             if disconnected {
                 let dev = self.devices.remove(&device_id).unwrap();
@@ -486,7 +484,7 @@ impl Plugin for WootingPlugin {
 
     fn device_info(&mut self, buffer: &mut [DeviceInfoPointer]) -> SDKResult<c_int> {
         if !self.initialised {
-            return AnalogSDKResult::UnInitialized.into();
+            return WootingAnalogResult::UnInitialized.into();
         }
 
         let mut count = 0;
