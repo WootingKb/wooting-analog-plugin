@@ -3,13 +3,29 @@ name = "wooting-analog-plugin"
 version = "0.1.0"
 authors = ["simon-wh <simon@wooting.io>"]
 edition = "2018"
+license = "MPL-2.0"
+description = "Wooting Analog Plugin for the Wooting Analog SDk"
+repository = "https://github.com/WootingKb/wooting-analog-plugin"
+homepage = "https://github.com/WootingKb/wooting-analog-plugin"
+readme = "README.md"
 
 [dependencies]
 log = "0.4.7"
-wooting-analog-plugin-dev = { path = "analog-sdk/wooting-analog-plugin-dev"}
+# For dev
+#wooting-analog-plugin-dev = { path = "analog-sdk/wooting-analog-plugin-dev"}
+wooting-analog-plugin-dev = "0.1.0"
 hidapi = { version = "0.5.2", features = ["linux-static-hidraw"], default-features = false }
 env_logger = "0.6.2"
 objekt = "0.1.2"
 
 [lib]
 crate-type = ["cdylib"]
+
+[package.metadata.deb]
+assets = [
+    ["target/release/libwooting_analog_plugin.so", "opt/wooting-analog-plugin/", "755"],
+    ["etc/wooting-analog-plugin.sh", "opt/wooting-analog-plugin/", "755"],
+    ["etc/wooting-analog-plugin.csh", "opt/wooting-analog-plugin/plugins", "755"],
+]
+depends = "$auto"
+priority = "optional"
