@@ -114,7 +114,7 @@ impl DeviceImplementation for WootingOne {
             #[cfg(linux)]
             usage_page: 0,
             #[cfg(not(linux))]
-            usage_page: 0xFF54,
+            usage_page: 0x54FF,
 
             interface_n: 6,
         }
@@ -137,7 +137,7 @@ impl DeviceImplementation for WootingTwo {
             #[cfg(linux)]
             usage_page: 0,
             #[cfg(not(linux))]
-            usage_page: 0xFF54,
+            usage_page: 0x54FF,
 
             interface_n: 6,
         }
@@ -213,7 +213,7 @@ pub struct WootingPlugin {
     hid_api: Option<HidApi>,
 }
 
-const PLUGIN_NAME: &str = "Test Plugin";
+const PLUGIN_NAME: &str = "Wooting Official Plugin";
 impl WootingPlugin {
     fn new() -> Self {
         WootingPlugin {
@@ -238,7 +238,7 @@ impl WootingPlugin {
             Some(api) => {
                 for device_info in api.devices() {
                     for device_impl in self.device_impls.iter() {
-                        //debug!("{:#?}", device_info);
+                        debug!("{:#?}", device_info);
                         if device_impl.matches(device_info)
                             && !self
                                 .devices
@@ -271,7 +271,7 @@ impl WootingPlugin {
                     return WootingAnalogResult::NoDevices;
                 }
 
-                //debug!("Finished with devices");
+                debug!("Finished with devices");
             }
             None => {
                 return WootingAnalogResult::UnInitialized;
@@ -292,7 +292,7 @@ impl Plugin for WootingPlugin {
 
     fn initialise(&mut self) -> WootingAnalogResult {
         //return WootingAnalogResult::Failure;
-        //env_logger::init();
+        env_logger::init();
         match HidApi::new() {
             Ok(api) => {
                 self.hid_api = Some(api);
