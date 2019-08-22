@@ -6,6 +6,11 @@ language: rust
 services: docker
 sudo: required
 
+addons:
+  apt:
+    packages:
+    - libudev-dev
+
 # TODO Rust builds on stable by default, this can be
 # overridden on a case by case basis down below.
 
