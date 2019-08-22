@@ -101,14 +101,14 @@ matrix:
 before_install:
   - set -e
   - rustup self update
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:/usr/lib/x86_64-linux-gnu/pkgconfig/     ; fi
+
 #  - rustup toolchain install nightly
 
 install:
   - sh ci/install.sh
   - source ~/.cargo/env || true
   #- which cargo-make || cargo install cargo-make
-  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then which cargo-deb || cargo install cargo-deb     ; fi
-  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then which cargo-wix || cargo install cargo-wix; choco install -y wixtoolset --version 3.10.3.300702 || true; export PATH=$PATH";C:\Program Files (x86)\WiX Toolset v3.10\bin"               ; fi
 
 script:
   - bash ci/script.sh
@@ -117,6 +117,8 @@ after_script: set +e
 
 before_deploy:
   - sh ci/before_deploy.sh
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then which cargo-deb || cargo install cargo-deb     ; fi
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then which cargo-wix || cargo install cargo-wix; choco install -y wixtoolset --version 3.10.3.300702 || true; export PATH=$PATH";C:\Program Files (x86)\WiX Toolset v3.10\bin"               ; fi
   - if [ "$TRAVIS_OS_NAME" = "windows" ]; then cargo wix     ; fi
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then cargo deb     ; fi
 
