@@ -35,7 +35,7 @@ main() {
 
     test -f Cargo.lock || cargo generate-lockfile
 
-    $cargo build --target $TARGET --release
+    cargo build --target $TARGET --release
 
 
 

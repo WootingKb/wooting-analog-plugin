@@ -102,7 +102,7 @@ matrix:
 before_install:
   - set -e
   - rustup self update
-  #- if [ "$TRAVIS_OS_NAME" = "linux" ]; then export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:/usr/lib/x86_64-linux-gnu/pkgconfig/     ; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:/usr/lib/x86_64-linux-gnu/pkgconfig/     ; fi
 
 #  - rustup toolchain install nightly
 

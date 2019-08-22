@@ -6,7 +6,7 @@ set -ex
 main() {
     local cargo=cargo
     if [ $TRAVIS_OS_NAME = linux ] || [ $TRAVIS_OS_NAME = osx ]; then
-      cargo=cross
+      #cargo=cross
     fi
 
     #cross build --target $TARGET
