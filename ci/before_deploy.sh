@@ -40,7 +40,7 @@ main() {
 
 
     # Copy Plugin items
-    cp target/$TARGET/release/${lib_prefix}wooting_analog_plugin.$lib_ext $stage
+    cp target/$TARGET/release/${lib_prefix}wooting_analog_plugin.$shared_lib_ext $stage
     cp README.md $stage
 
     cd $stage
