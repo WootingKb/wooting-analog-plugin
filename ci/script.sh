@@ -5,9 +5,9 @@ set -ex
 # TODO This is the "test phase", tweak it as you see fit
 main() {
     local cargo=cargo
-    if [ $TRAVIS_OS_NAME = linux ] || [ $TRAVIS_OS_NAME = osx ]; then
+    #if [ $TRAVIS_OS_NAME = linux ] || [ $TRAVIS_OS_NAME = osx ]; then
       #cargo=cross
-    fi
+    #fi
 
     #cross build --target $TARGET
     #cross build --target $TARGET --release
