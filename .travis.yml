@@ -1,0 +1,163 @@
+# Based on the "trust" template v0.1.2
+# https://github.com/japaric/trust/tree/v0.1.2
+
+dist: trusty
+language: rust
+services: docker
+sudo: required
+
+addons:
+  apt:
+    packages:
+    - libudev-dev
+    - libhidapi-dev
+
+# TODO Rust builds on stable by default, this can be
+# overridden on a case by case basis down below.
+
+env:
+  global:
+    # TODO Update this to match the name of your project.
+    - CRATE_NAME=wooting-analog-plugin
+    #- RUST_LOG=trace
+
+matrix:
+  # TODO These are all the build jobs. Adjust as necessary. Comment out what you
+  # don't need
+  include:
+    # Android
+    #- env: TARGET=aarch64-linux-android DISABLE_TESTS=1
+    #- env: TARGET=arm-linux-androideabi DISABLE_TESTS=1
+    #- env: TARGET=armv7-linux-androideabi DISABLE_TESTS=1
+    #- env: TARGET=i686-linux-android DISABLE_TESTS=1
+    #- env: TARGET=x86_64-linux-android DISABLE_TESTS=1
+
+    # iOS
+    #- env: TARGET=aarch64-apple-ios DISABLE_TESTS=1
+    #  os: osx
+    #- env: TARGET=armv7-apple-ios DISABLE_TESTS=1
+    #  os: osx
+    #- env: TARGET=armv7s-apple-ios DISABLE_TESTS=1
+    #  os: osx
+    #- env: TARGET=i386-apple-ios DISABLE_TESTS=1
+    #  os: osx
+    #- env: TARGET=x86_64-apple-ios DISABLE_TESTS=1
+    #  os: osx
+
+    # Linux
+    #- env: TARGET=aarch64-unknown-linux-gnu
+    #- env: TARGET=arm-unknown-linux-gnueabi
+    #- env: TARGET=armv7-unknown-linux-gnueabihf
+    #- env: TARGET=i686-unknown-linux-gnu
+    #- env: TARGET=i686-unknown-linux-musl
+    #- env: TARGET=mips-unknown-linux-gnu
+    #- env: TARGET=mips64-unknown-linux-gnuabi64
+    #- env: TARGET=mips64el-unknown-linux-gnuabi64
+    #- env: TARGET=mipsel-unknown-linux-gnu
+    #- env: TARGET=powerpc-unknown-linux-gnu
+    #- env: TARGET=powerpc64-unknown-linux-gnu
+    #- env: TARGET=powerpc64le-unknown-linux-gnu
+    #- env: TARGET=s390x-unknown-linux-gnu DISABLE_TESTS=1
+    - env: TARGET=x86_64-unknown-linux-gnu
+    #- env: TARGET=x86_64-unknown-linux-musl
+
+    # OSX
+    #- env: TARGET=i686-apple-darwin
+    #  os: osx
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
+
+    # *BSD
+    #- env: TARGET=i686-unknown-freebsd DISABLE_TESTS=1
+    #- env: TARGET=x86_64-unknown-freebsd DISABLE_TESTS=1
+    #- env: TARGET=x86_64-unknown-netbsd DISABLE_TESTS=1
+
+    # Windows
+    #- env: TARGET=x86_64-pc-windows-gnu
+    
+    - env: TARGET=x86_64-pc-windows-msvc
+      os: windows
+
+    #- env: TARGET=i686-pc-windows-msvc
+    #  os: windows
+
+    # Bare metal
+    # These targets don't support std and as such are likely not suitable for
+    # most crates.
+    # - env: TARGET=thumbv6m-none-eabi
+    # - env: TARGET=thumbv7em-none-eabi
+    # - env: TARGET=thumbv7em-none-eabihf
+    # - env: TARGET=thumbv7m-none-eabi
+
+    # Testing other channels
+    - env: TARGET=x86_64-pc-windows-msvc
+      os: windows
+      rust: nightly
+    - env: TARGET=x86_64-unknown-linux-gnu
+      rust: nightly
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
+      rust: nightly
+
+before_install:
+  - set -e
+  - rustup self update
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:/usr/lib/x86_64-linux-gnu/pkgconfig/     ; fi
+
+#  - rustup toolchain install nightly
+
+install:
+  - sh ci/install.sh
+  - source ~/.cargo/env || true
+  #- which cargo-make || cargo install cargo-make
+
+script:
+  - bash ci/script.sh
+
+after_script: set +e
+
+before_deploy:
+  - sh ci/before_deploy.sh
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then which cargo-deb || cargo install cargo-deb     ; fi
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then which cargo-wix || cargo install cargo-wix; choco install -y wixtoolset --version 3.10.3.300702 || true; export PATH=$PATH";C:\Program Files (x86)\WiX Toolset v3.10\bin"               ; fi
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then cargo wix     ; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then cargo deb --target $TARGET     ; fi
+
+deploy:
+  api_key:
+    secure: E8zdLp9IOea3FMUCvpazXk9Mqq5N7Ys+WVsrVGY3k4NwgNWHLExcsE/Wch4MbU4/w01LvIV5l9JaMF+zr4c6fuIUr4YsXic0NSEKsK0o2uk6sy1UL8/gqvTUVJQxmbUfqEUpt7DtKYFLhWi0oOZ6SJkjUvu3/l9CnvxLo6X8QQXeeXHXFEqBSkBfMVeg8J41Ka30ygrSvn9kE9FVOkaGT9xsDgoiullB/wTQ1udWWjjgpE4IHboNSS+fWWLVUY421pAnvJMkmly3eWxESrCZItKFPtVtBkf0ecPZ/rVrSSIE3MBTywatSYxCjkz09Atsrgs3x3Q29h0nJnVh9EOktvp4Fa5+s+EisIr3vItic7lO7FfibymQsFzkLGz0B7NGQbcw01uRCA/IkGhh3zM/5VfMQG9fjeScxjuH31he9rFke88NJ5b9abgjcMsrNK/RRuHedQFxV/2TkJCZH3WYJ1e9dyh1jwtkIDrFuszh9pH3S9oeMgSrMpgpFpSxY0fQkWXzMBcsDKcUztnUuUo7EL1i309QD/5Cmr0dhYxUdZA74xumPEaIHKyUjkL1vQImGIYfFAJKCAijufgCe0hSnsubAxPNu1cTn/6xtBjO94PCYI1m+Qp5CSWdgUZHQKIeTEU+LXgNwCfjy9sWu88RdQ6ufhPugLoCHcc40l7VSNc=
+  file_glob: true
+  file: 
+    - $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
+    - target/wix/*.msi
+    - target/$TARGET/debian/*.deb
+  on:
+    # TODO Here you can pick which targets will generate binary releases
+    # In this example, there are some targets that are tested using the stable
+    # and nightly channels. This condition makes sure there is only one release
+    # for such targets and that's generated using the stable channel
+    condition: $TRAVIS_RUST_VERSION = stable
+    tags: true
+  provider: releases
+  skip_cleanup: true
+  draft: true
+
+cache:
+  timeout: 1000
+  cargo: true
+before_cache:
+  # Travis can't cache files that are not readable by "others"
+  - travis_wait chmod -R a+r $HOME/.cargo
+
+branches:
+  only:
+    # release tags
+    - /^v\d+\.\d+\.\d+.*$/
+    - develop
+    - /^feature\/.*$/
+    - /^hotfix\/.*$/
+    - /^release\/.*$/
+
+notifications:
+  email:
+    on_success: never
