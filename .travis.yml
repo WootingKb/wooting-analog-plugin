@@ -121,7 +121,7 @@ before_deploy:
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then which cargo-deb || cargo install cargo-deb     ; fi
   - if [ "$TRAVIS_OS_NAME" = "windows" ]; then which cargo-wix || cargo install cargo-wix; choco install -y wixtoolset --version 3.10.3.300702 || true; export PATH=$PATH";C:\Program Files (x86)\WiX Toolset v3.10\bin"               ; fi
   - if [ "$TRAVIS_OS_NAME" = "windows" ]; then cargo wix     ; fi
-  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then cargo deb     ; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then cargo deb --target $TARGET     ; fi
 
 deploy:
   api_key:
