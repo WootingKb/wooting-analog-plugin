@@ -114,9 +114,9 @@ impl DeviceImplementation for WootingOne {
             #[cfg(linux)]
             usage_page: 0,
             #[cfg(not(linux))]
-            usage_page: 0x54FF,
+            usage_page: 0x1337,
 
-            interface_n: 6,
+            interface_n: 2,
         }
     }
 
@@ -137,9 +137,9 @@ impl DeviceImplementation for WootingTwo {
             #[cfg(linux)]
             usage_page: 0,
             #[cfg(not(linux))]
-            usage_page: 0x54FF,
+            usage_page: 0x1337,
 
-            interface_n: 6,
+            interface_n: 2,
         }
     }
 
