@@ -23,9 +23,9 @@ crate-type = ["cdylib"]
 
 [package.metadata.deb]
 assets = [
-    ["target/release/libwooting_analog_plugin.so", "opt/wooting-analog-plugin/", "755"],
-    ["etc/wooting-analog-plugin.sh", "opt/wooting-analog-plugin/", "755"],
-    ["etc/wooting-analog-plugin.csh", "opt/wooting-analog-plugin/plugins", "755"],
+    ["target/release/libwooting_analog_plugin.so", "usr/local/share/WootingAnalogPlugins/wooting-analog-plugin/", "755"],
+    #["etc/wooting-analog-plugin.sh", "opt/wooting-analog-plugin/", "755"],
+    #["etc/wooting-analog-plugin.csh", "opt/wooting-analog-plugin/plugins", "755"],
 ]
 depends = "$auto"
 priority = "optional"
