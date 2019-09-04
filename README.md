@@ -4,19 +4,18 @@
 
 This is Wooting's plugin for the [Analog SDK](https://github.com/simon-wh/Analog-SDK) providing easily extensible support for the Wooting One and Wooting Two.
 
-NOTE: At the moment you need an beta firmware for the Wooting One and Wooting Two which hasn't been pushed to Wootility for this to work.
+NOTE: At the moment you need an beta firmware for the Wooting One and Wooting Two which is currently packaged with the Wootility Beta.
 
-## Setting up
-For the Plugin to work you must add the directory it is in to the `WOOTING_ANALOG_SDK_PLUGINS_PATH` environment variable. The `.msi` and `.deb` installers will do this for you, but if you compile it manually or download just the plugin you'll need to do this yourself.
+## Getting Started
+**The easiest way to get the plugin is through installing it & updating it through Wootility (Currently Windows only)**
 
-For bash/Linux:
-```sh
-export WOOTING_ANALOG_SDK_PLUGINS_PATH=${WOOTING_ANALOG_SDK_PLUGINS_PATH};/path/to/plugin
-```
+This plugin is packaged with the [Wooting Analog SDK installer](https://github.com/WootingKb/wooting-analog-sdk/releases), so you probably want to use that, unless you want to install it separately. There is a deb package available on the [releases](https://github.com/WootingKb/wooting-analog-plugin/releases) for installing on Linux.
 
-For Powershell:
-```ps
-$Env:WOOTING_ANALOG_SDK_PLUGINS_PATH += ";C:\path\to\plugin"
-```
+If you wish to install it manually, download it from the [releases](https://github.com/WootingKb/wooting-analog-plugin/releases), you'll need to put it into a sub-directory of the `WootingAnalogPlugins` directory.
+So it should look something like this:
 
-> Setting the variable like this is only temporary and will only apply to your current terminal session
+| OS      | Install Path                                                                              |
+|---------|-------------------------------------------------------------------------------------------|
+| Windows | `C:\Program Files\WootingAnalogPlugins\wooting-analog-plugin\wooting_analog_plugin.dll`   |
+| Linux   | `/usr/local/share/WootingAnalogPlugins/wooting-analog-plugin/libwooting_analog_plugin.so` |
+| Mac     | `/Library/WootingAnalogPlugins/wooting-analog-plugin/libwooting_analog_plugin.dylib`      |
