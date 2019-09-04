@@ -83,7 +83,7 @@
                       </Component>
                       -->
 
-                      <Component Id='PluginsPath' Guid='A361A0A3-9E06-4AF9-8B70-0FA53A456916' Win64='$(var.Win64)' KeyPath='yes'>
+                      <!--<Component Id='PluginsPath' Guid='A361A0A3-9E06-4AF9-8B70-0FA53A456916' Win64='$(var.Win64)' KeyPath='yes'>
                           <Environment
                               Id='PluginsPATH'
                               Name='WOOTING_ANALOG_SDK_PLUGINS_PATH'
@@ -92,7 +92,7 @@
                               Part='last'
                               Action='set'
                               System='yes'/>
-                      </Component>
+                      </Component>-->
                       <Component Id='wooting_analog_pluginLib' Guid='*' Win64='$(var.Win64)'>
                           <RemoveFolder Id="RemovePluginDir" Directory="APPLICATIONFOLDER" On="uninstall"/>
                           <File
@@ -130,7 +130,7 @@
                 Description='Add the install location of the [ProductName] executable to the PATH system environment variable. This allows the [ProductName] executable to be called from any location.'
                 Level='1'
                 Absent='allow'>-->
-                <ComponentRef Id='PluginsPath'/>
+                <!--<ComponentRef Id='PluginsPath'/>-->
             <!--</Feature>-->
         </Feature>
 
