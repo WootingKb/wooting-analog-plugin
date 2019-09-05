@@ -3,7 +3,7 @@ script_runner = "@shell"
 script = [
 '''
 sudo mkdir -p "${PLUGIN_INSTALL_PATH}"
-sudo mkdir -p "${PLUGIN_INSTALL_PATH}/test-plugin"
+sudo mkdir -p "${PLUGIN_INSTALL_PATH}/wooting-analog-plugin"
 
 sudo cp "./target/debug/${TEST_PLUGIN_FILENAME}" "${PLUGIN_INSTALL_PATH}/wooting-analog-plugin/${TEST_PLUGIN_FILENAME}"
 '''
