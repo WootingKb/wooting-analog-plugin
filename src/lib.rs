@@ -226,7 +226,7 @@ impl Device {
         (*self.buffer.lock().unwrap().get(&code).unwrap_or(&0.0)).into()
     }
 
-    fn read_full_buffer(&mut self, max_length: usize) -> SDKResult<HashMap<c_ushort, c_float>> {
+    fn read_full_buffer(&mut self, _max_length: usize) -> SDKResult<HashMap<c_ushort, c_float>> {
         Ok(self.buffer.lock().unwrap().clone()).into()
     }
 }
@@ -322,19 +322,24 @@ impl WootingPlugin {
             let t_devices = Arc::clone(&self.devices);
             let t_device_event_cb = Arc::clone(&self.device_event_cb);
             self.timer.schedule_repeating(chrono::Duration::milliseconds(500), move || {
-                let mut disconnected: Vec<u64> = vec![];
-                for (&id, device) in t_devices.lock().unwrap().iter() {
-                    if !*device.connected.lock().unwrap() {
-                        disconnected.push(id);
+                //Check if any of the devices have disconnected and get rid of them if they have
+                {
+                    let mut disconnected: Vec<u64> = vec![];
+                    for (&id, device) in t_devices.lock().unwrap().iter() {
+                        if !*device.connected.lock().unwrap() {
+                            disconnected.push(id);
+                        }
+                    }
+
+                    for id in disconnected.iter() {
+                        let device = t_devices.lock().unwrap().remove(id).unwrap();
+                        handle_device_event(t_device_event_cb.lock().unwrap().borrow(), &device, DeviceEventType::Disconnected);
                     }
                 }
 
-                for id in disconnected.iter() {
-                    let device = t_devices.lock().unwrap().remove(id).unwrap();
-                    handle_device_event(t_device_event_cb.lock().unwrap().borrow(), &device, DeviceEventType::Disconnected);
+                if let Err(e) = hid.refresh_devices() {
+                    error!("We got error while refreshing devices. Err: {}", e);
                 }
-
-                hid.refresh_devices();
                 init_device_closure(&hid, &t_devices, &t_device_event_cb, &device_impls);
             })
         });
