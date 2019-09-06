@@ -14,9 +14,11 @@ log = "0.4.7"
 # For dev
 #wooting-analog-plugin-dev = { path = "analog-sdk/wooting-analog-plugin-dev"}
 wooting-analog-plugin-dev = "0.1.0"
-hidapi = { version = "0.5.2", features = ["linux-static-hidraw"], default-features = false }
+hidapi = { version = "1.0.1", features = ["linux-static-hidraw"], default-features = false }
 env_logger = "0.6.2"
 objekt = "0.1.2"
+timer = "0.2.0"
+chrono = "0.4.9"
 
 [lib]
 crate-type = ["cdylib"]

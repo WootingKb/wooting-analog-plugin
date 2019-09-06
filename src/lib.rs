@@ -5,18 +5,26 @@ extern crate wooting_analog_plugin_dev;
 extern crate hidapi;
 #[macro_use]
 extern crate objekt;
+extern crate timer;
+extern crate chrono;
+
 
 use hidapi::{HidApi, HidDevice, HidDeviceInfo};
 use log::{error, info};
 use std::collections::HashMap;
 use std::os::raw::{c_float, c_int, c_ushort};
-use std::str;
+use std::{str, thread};
 use wooting_analog_plugin_dev::wooting_analog_common::*;
 use wooting_analog_plugin_dev::*;
+use timer::{Guard, Timer};
+use std::sync::{Mutex, Arc};
+use std::borrow::Borrow;
+//use std::thread::JoinHandle;
 
 extern crate env_logger;
 
 const ANALOG_BUFFER_SIZE: usize = 48;
+const ANALOG_MAX_SIZE: usize = 40;
 
 /// Struct holding the information we need to find the device and the analog interface
 struct DeviceHardwareID {
@@ -27,7 +35,7 @@ struct DeviceHardwareID {
 }
 
 /// Trait which defines how the Plugin can communicate with a particular device
-trait DeviceImplementation: objekt::Clone {
+trait DeviceImplementation: objekt::Clone + Send {
     /// Gives the device hardware ID that can be used to obtain the analog interface for this device
     fn device_hardware_id(&self) -> DeviceHardwareID;
 
@@ -62,11 +70,11 @@ trait DeviceImplementation: objekt::Clone {
     /// `max_length` is not the max length of the report, it is the max number of key + analog value pairs to read
     fn get_analog_buffer(
         &self,
-        buffer: &mut [u8],
         device: &HidDevice,
         max_length: usize,
     ) -> SDKResult<HashMap<c_ushort, c_float>> {
-        let res = device.read_timeout(buffer, 0);
+        let mut buffer: [u8; ANALOG_BUFFER_SIZE] = [0; ANALOG_BUFFER_SIZE];
+        let res = device.read(&mut buffer);
         if let Err(e) = res {
             error!("Failed to read buffer: {}", e);
 
@@ -102,7 +110,7 @@ trait DeviceImplementation: objekt::Clone {
 
 clone_trait_object!(DeviceImplementation);
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct WootingOne();
 
 impl DeviceImplementation for WootingOne {
@@ -125,7 +133,7 @@ impl DeviceImplementation for WootingOne {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct WootingTwo();
 
 impl DeviceImplementation for WootingTwo {
@@ -150,11 +158,12 @@ impl DeviceImplementation for WootingTwo {
 
 /// A fully contained device which uses `device_impl` to interface with the `device`
 struct Device {
-    device: HidDevice,
     pub device_info: DeviceInfoPointer,
-    device_impl: Box<dyn DeviceImplementation>,
-    buffer: [u8; ANALOG_BUFFER_SIZE],
+    buffer: Arc<Mutex<HashMap<c_ushort, c_float>>>,
+    connected: Arc<Mutex<bool>>,
+    //worker: JoinHandle<i32>
 }
+unsafe impl Send for Device {}
 
 impl Device {
     fn new(
@@ -163,10 +172,41 @@ impl Device {
         device_impl: Box<DeviceImplementation>,
     ) -> (DeviceID, Self) {
         let id_hash = device_impl.get_device_id(device_info);
+
+        let buffer: Arc<Mutex<HashMap<c_ushort, c_float>>> = Arc::new(Mutex::new(Default::default()));
+        let connected = Arc::new(Mutex::new(true));
+
+        let _worker = {
+            let t_buffer = Arc::clone(&buffer);
+            let t_connected = Arc::clone(&connected);
+
+            thread::spawn(move || {
+                loop {
+                    if !*t_connected.lock().unwrap() {
+                        return 0;
+                    }
+
+                    match device_impl.get_analog_buffer(&device, ANALOG_MAX_SIZE).into() {
+                        Ok(data) => {
+                            let mut m = t_buffer.lock().unwrap();
+                            m.clear();
+                            m.extend(data);
+                        },
+                        Err(e) => {
+                            if e != WootingAnalogResult::DeviceDisconnected {
+                                error!("Read failed from device that isn't DeviceDisconnected, we got {:?}. Disconnecting device...", e);
+                            }
+                            *t_connected.lock().unwrap() = false;
+                            return 0;
+                        }
+                    }
+                }
+            })
+        };
+
         (
             id_hash,
             Device {
-                device,
                 device_info: DeviceInfo::new_with_id(
                     device_info.vendor_id,
                     device_info.product_id,
@@ -175,42 +215,47 @@ impl Device {
                     id_hash,
                 )
                 .to_ptr(),
-                device_impl,
-                buffer: [0; ANALOG_BUFFER_SIZE],
+                connected,
+                buffer,
+                //worker
             },
         )
     }
 
     fn read_analog(&mut self, code: u16) -> SDKResult<c_float> {
-        match self
-            .device_impl
-            .get_analog_buffer(&mut self.buffer, &self.device, ANALOG_BUFFER_SIZE)
-            .into()
-        {
-            Ok(data) => (*data.get(&code).unwrap_or(&0.0)).into(),
-            Err(e) => Err(e).into(),
-        }
+        (*self.buffer.lock().unwrap().get(&code).unwrap_or(&0.0)).into()
     }
 
-    fn read_full_buffer(&mut self, max_length: usize) -> SDKResult<HashMap<c_ushort, c_float>> {
-        self.device_impl
-            .get_analog_buffer(&mut self.buffer, &self.device, max_length)
+    fn read_full_buffer(&mut self, _max_length: usize) -> SDKResult<HashMap<c_ushort, c_float>> {
+        Ok(self.buffer.lock().unwrap().clone()).into()
     }
 }
 
 impl Drop for Device {
     fn drop(&mut self) {
         self.device_info.clone().drop();
+        //Set the device to connected so the thread will stop if it hasn't already
+        *self.connected.lock().unwrap() = false;
+        //self.worker.join().expect("Couldn't join on the associated thread");
     }
 }
 
-#[derive(Default)] //Debug
+fn call_cb(cb: &Option<extern "C" fn(DeviceEventType, DeviceInfoPointer)>, device: &Device, event_type: DeviceEventType) {
+    if let Some(cb) = cb {
+        cb(event_type, device.device_info.clone());
+    }
+}
+
+fn handle_device_event(cb: &Option<extern "C" fn(DeviceEventType, DeviceInfoPointer)>, device: &Device, cb_type: DeviceEventType) {
+    call_cb(cb, device, cb_type);
+}
+
 pub struct WootingPlugin {
     initialised: bool,
-    device_event_cb: Option<extern "C" fn(DeviceEventType, DeviceInfoPointer)>,
-    devices: HashMap<DeviceID, Device>,
-    device_impls: Vec<Box<dyn DeviceImplementation>>,
-    hid_api: Option<HidApi>,
+    device_event_cb: Arc<Mutex<Option<extern "C" fn(DeviceEventType, DeviceInfoPointer)>>>,
+    devices: Arc<Mutex<HashMap<DeviceID, Device>>>,
+    timer: Timer,
+    worker_guard: Option<Guard>
 }
 
 const PLUGIN_NAME: &str = "Wooting Official Plugin";
@@ -218,27 +263,98 @@ impl WootingPlugin {
     fn new() -> Self {
         WootingPlugin {
             initialised: false,
-            device_event_cb: None,
-            devices: Default::default(),
-            device_impls: vec![Box::new(WootingOne()), Box::new(WootingTwo())],
-            hid_api: None,
+            device_event_cb:  Arc::new(Mutex::new(None)),
+            devices: Arc::new(Mutex::new(Default::default())),
+            timer: timer::Timer::new(),
+            worker_guard: None
         }
     }
+    
+    fn init_worker(&mut self) -> WootingAnalogResult {
+        let init_device_closure = |hid: &HidApi, devices: &Arc<Mutex<HashMap<DeviceID, Device>>>, device_event_cb: &Arc<Mutex<Option<extern "C" fn(DeviceEventType, DeviceInfoPointer)>>>, device_impls: &Vec<Box<dyn DeviceImplementation>>| {
+            for device_info in hid.devices() {
+                for device_impl in device_impls.iter() {
+                    if device_impl.matches(device_info)
+                        && !devices.lock().unwrap()
+                        .contains_key(&device_impl.get_device_id(device_info))
+                    {
+                        info!("Found device impl match: {:?}", device_info);
+                        match device_info.open_device(&hid) {
+                            Ok(dev) => {
+                                let (id, device) =
+                                    Device::new(device_info, dev, device_impl.clone());
+                                devices.lock().unwrap().insert(id, device);
+                                info!(
+                                    "Found and opened the {:?} successfully!",
+                                    device_info.product_string
+                                );
+                                handle_device_event(
+                                    device_event_cb.lock().unwrap().borrow(),
+                                    devices.lock().unwrap().get(&id).unwrap(),
+                                    DeviceEventType::Connected,
+                                );
+                            }
+                            Err(e) => {
+                                error!("Error opening HID Device: {}", e);
+                                //return WootingAnalogResult::Failure.into();
+                            }
+                        }
+                    }
+                }
+            }
+        };
 
-    fn call_cb(&self, device: &Device, event_type: DeviceEventType) {
-        if let Some(cb) = self.device_event_cb {
-            cb(event_type, device.device_info.clone());
-        }
+        let device_impls: Vec<Box<dyn DeviceImplementation>> = vec![Box::new(WootingOne()), Box::new(WootingTwo())];
+        let mut hid = match HidApi::new() {
+            Ok(api) => {
+                api
+            }
+            Err(e) => {
+                error!("Error obtaining HIDAPI: {}", e);
+                return WootingAnalogResult::Failure;
+            }
+        };
+
+        //We wanna call it in this thread first so we can get hold of any connected devices now so we can return an accurate result for initialise
+        init_device_closure(&hid, &self.devices, &self.device_event_cb, &device_impls);
+
+        self.worker_guard = Some({
+            let t_devices = Arc::clone(&self.devices);
+            let t_device_event_cb = Arc::clone(&self.device_event_cb);
+            self.timer.schedule_repeating(chrono::Duration::milliseconds(500), move || {
+                //Check if any of the devices have disconnected and get rid of them if they have
+                {
+                    let mut disconnected: Vec<u64> = vec![];
+                    for (&id, device) in t_devices.lock().unwrap().iter() {
+                        if !*device.connected.lock().unwrap() {
+                            disconnected.push(id);
+                        }
+                    }
+
+                    for id in disconnected.iter() {
+                        let device = t_devices.lock().unwrap().remove(id).unwrap();
+                        handle_device_event(t_device_event_cb.lock().unwrap().borrow(), &device, DeviceEventType::Disconnected);
+                    }
+                }
+
+                if let Err(e) = hid.refresh_devices() {
+                    error!("We got error while refreshing devices. Err: {}", e);
+                }
+                init_device_closure(&hid, &t_devices, &t_device_event_cb, &device_impls);
+            })
+        });
+        debug!("Started timer");
+        return if self.devices.lock().unwrap().is_empty() { WootingAnalogResult::NoDevices } else { WootingAnalogResult::Ok };
     }
 
-    fn init_device(&mut self) -> WootingAnalogResult {
+    /*fn init_device(&mut self) -> WootingAnalogResult {
         self.hid_api.as_mut().map(|api| api.refresh_devices());
 
         match &self.hid_api {
             Some(api) => {
                 for device_info in api.devices() {
+                    //debug!("{:#?}", device_info);
                     for device_impl in self.device_impls.iter() {
-                        debug!("{:#?}", device_info);
                         if device_impl.matches(device_info)
                             && !self
                                 .devices
@@ -253,7 +369,7 @@ impl WootingPlugin {
                                         "Found and opened the {:?} successfully!",
                                         device_info.product_string
                                     );
-                                    self.handle_device_event(
+                                    handle_device_event(
                                         self.devices.get(&id).unwrap(),
                                         DeviceEventType::Connected,
                                     );
@@ -278,11 +394,9 @@ impl WootingPlugin {
             }
         }
         WootingAnalogResult::Ok
-    }
+    }*/
 
-    fn handle_device_event(&self, device: &Device, cb_type: DeviceEventType) {
-        self.call_cb(device, cb_type);
-    }
+    
 }
 
 impl Plugin for WootingPlugin {
@@ -292,8 +406,8 @@ impl Plugin for WootingPlugin {
 
     fn initialise(&mut self) -> WootingAnalogResult {
         //return WootingAnalogResult::Failure;
-        env_logger::init();
-        match HidApi::new() {
+        env_logger::try_init();
+        /*match HidApi::new() {
             Ok(api) => {
                 self.hid_api = Some(api);
             }
@@ -301,12 +415,15 @@ impl Plugin for WootingPlugin {
                 error!("Error: {}", e);
                 return WootingAnalogResult::Failure;
             }
-        }
-        let ret = self.init_device();
+        }*/
+        let ret = self.init_worker();
+        /*let ret = self.init_device();
         self.initialised = ret.is_ok();
         if self.initialised {
             info!("{} initialised", PLUGIN_NAME);
         }
+        ret*/
+        self.initialised = ret.is_ok() || ret == WootingAnalogResult::NoDevices;
         ret
     }
 
@@ -318,10 +435,9 @@ impl Plugin for WootingPlugin {
         info!("{} unloaded", PLUGIN_NAME);
         //TODO: drop devices
 
-        /*if self.device_info.is_some() {
-            let dev = self.device_info.take();
-            dev.unwrap().drop();
-        }*/
+        //for dev in self.devices.clone().unwrap().drain(..) {
+            //handle_device_event(self.device_event_cb.lock().unwrap().borrow(), &dev, DeviceEventType::Disconnected);
+        //}
     }
 
     fn set_device_event_cb(
@@ -332,7 +448,7 @@ impl Plugin for WootingPlugin {
             return WootingAnalogResult::UnInitialized;
         }
         debug!("disconnected cb set");
-        self.device_event_cb = Some(cb);
+        self.device_event_cb.lock().unwrap().replace(cb);
         WootingAnalogResult::Ok
     }
 
@@ -342,7 +458,7 @@ impl Plugin for WootingPlugin {
         }
 
         debug!("disconnected cb cleared");
-        self.device_event_cb = None;
+        self.device_event_cb.lock().unwrap().take();
         WootingAnalogResult::Ok
     }
 
@@ -351,7 +467,7 @@ impl Plugin for WootingPlugin {
             return WootingAnalogResult::UnInitialized.into();
         }
 
-        if self.devices.is_empty() {
+        if self.devices.lock().unwrap().is_empty() {
             return WootingAnalogResult::NoDevices.into();
         }
 
@@ -360,24 +476,15 @@ impl Plugin for WootingPlugin {
         if device_id == 0 {
             let mut analog: f32 = -1.0;
             let mut error: WootingAnalogResult = WootingAnalogResult::Ok;
-            let mut dc = Vec::new();
-            for (id, device) in self.devices.iter_mut() {
+            for (_id, device) in self.devices.lock().unwrap().iter_mut() {
                 match device.read_analog(code).into() {
                     Ok(val) => {
                         analog = analog.max(val);
-                    }
-                    Err(WootingAnalogResult::DeviceDisconnected) => {
-                        dc.push(*id);
-                        error = WootingAnalogResult::DeviceDisconnected;
                     }
                     Err(e) => {
                         error = e;
                     }
                 }
-            }
-            for dev in dc.drain(..) {
-                let device = self.devices.remove(&dev).unwrap();
-                self.handle_device_event(&device, DeviceEventType::Disconnected);
             }
 
             if analog < 0.0 {
@@ -388,23 +495,13 @@ impl Plugin for WootingPlugin {
         } else
         //If the device id is not 0, we try and find a connected device with that ID and read from it
         {
-            let mut disconnected = false;
-            let ret = match self.devices.get_mut(&device_id) {
+            let ret = match self.devices.lock().unwrap().get_mut(&device_id) {
                 Some(device) => match device.read_analog(code).into() {
                     Ok(val) => val.into(),
-                    Err(WootingAnalogResult::DeviceDisconnected) => {
-                        disconnected = true;
-                        WootingAnalogResult::DeviceDisconnected.into()
-                    }
                     Err(e) => Err(e).into(),
                 },
                 None => WootingAnalogResult::NoDevices.into(),
             };
-            if disconnected {
-                let dev = self.devices.remove(&device_id).unwrap();
-                self.handle_device_event(&dev, DeviceEventType::Disconnected);
-            }
-
             ret
         }
     }
@@ -418,7 +515,7 @@ impl Plugin for WootingPlugin {
             return WootingAnalogResult::UnInitialized.into();
         }
 
-        if self.devices.is_empty() {
+        if self.devices.lock().unwrap().is_empty() {
             return WootingAnalogResult::NoDevices.into();
         }
 
@@ -428,25 +525,16 @@ impl Plugin for WootingPlugin {
             let mut analog: HashMap<c_ushort, c_float> = HashMap::new();
             let mut any_read = false;
             let mut error: WootingAnalogResult = WootingAnalogResult::Ok;
-            let mut dc = Vec::new();
-            for (id, device) in self.devices.iter_mut() {
+            for (_id, device) in self.devices.lock().unwrap().iter_mut() {
                 match device.read_full_buffer(max_length).into() {
                     Ok(val) => {
                         any_read = true;
                         analog.extend(val);
                     }
-                    Err(WootingAnalogResult::DeviceDisconnected) => {
-                        dc.push(*id);
-                        error = WootingAnalogResult::DeviceDisconnected;
-                    }
                     Err(e) => {
                         error = e;
                     }
                 }
-            }
-            for dev in dc.drain(..) {
-                let device = self.devices.remove(&dev).unwrap();
-                self.handle_device_event(&device, DeviceEventType::Disconnected);
             }
 
             if !any_read {
@@ -457,22 +545,13 @@ impl Plugin for WootingPlugin {
         } else
         //If the device id is not 0, we try and find a connected device with that ID and read from it
         {
-            let mut disconnected = false;
-            let ret = match self.devices.get_mut(&device_id) {
+            let ret = match self.devices.lock().unwrap().get_mut(&device_id) {
                 Some(device) => match device.read_full_buffer(max_length).into() {
                     Ok(val) => Ok(val).into(),
-                    Err(WootingAnalogResult::DeviceDisconnected) => {
-                        disconnected = true;
-                        WootingAnalogResult::DeviceDisconnected.into()
-                    }
                     Err(e) => Err(e).into(),
                 },
                 None => WootingAnalogResult::NoDevices.into(),
             };
-            if disconnected {
-                let dev = self.devices.remove(&device_id).unwrap();
-                self.handle_device_event(&dev, DeviceEventType::Disconnected);
-            }
 
             ret
         }
@@ -484,7 +563,7 @@ impl Plugin for WootingPlugin {
         }
 
         let mut count = 0;
-        for (_id, device) in self.devices.iter() {
+        for (_id, device) in self.devices.lock().unwrap().iter() {
             buffer[count] = device.device_info.clone();
             count += 1;
         }
