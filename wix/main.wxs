@@ -60,49 +60,50 @@
 
         <Directory Id='TARGETDIR' Name='SourceDir'>
             <Directory Id='$(var.PlatformProgramFilesFolder)' Name='PFiles'>
-                <Directory Id='APPLICATIONFOLDER' Name='wooting-analog-plugin'>
-                    
-                    <!--
-                      Enabling the license sidecar file in the installer is a four step process:
+              <Directory Id="PluginDir" Name='WootingAnalogPlugins'>
+                  <Directory Id='APPLICATIONFOLDER' Name='wooting-analog-plugin'>
+                      
+                      <!--
+                        Enabling the license sidecar file in the installer is a four step process:
 
-                      1. Uncomment the `Component` tag and its contents.
-                      2. Change the value for the `Source` attribute in the `File` tag to a path
-                         to the file that should be included as the license sidecar file. The path
-                         can, and probably should be, relative to this file.
-                      3. Change the value for the `Name` attribute in the `File` tag to the
-                         desired name for the file when it is installed alongside the `bin` folder
-                         in the installation directory. This can be omitted if the desired name is
-                         the same as the file name.
-                      4. Uncomment the `ComponentRef` tag with the Id attribute value of "License"
-                         further down in this file.
-                    -->
-                    <!--
-                    <Component Id='License' Guid='*' Win64='$(var.Win64)'>
-                        <File Id='LicenseFile' Name='ChangeMe' DiskId='1' Source='C:\Path\To\File' KeyPath='yes'/>
-                    </Component>
-                    -->
+                        1. Uncomment the `Component` tag and its contents.
+                        2. Change the value for the `Source` attribute in the `File` tag to a path
+                          to the file that should be included as the license sidecar file. The path
+                          can, and probably should be, relative to this file.
+                        3. Change the value for the `Name` attribute in the `File` tag to the
+                          desired name for the file when it is installed alongside the `bin` folder
+                          in the installation directory. This can be omitted if the desired name is
+                          the same as the file name.
+                        4. Uncomment the `ComponentRef` tag with the Id attribute value of "License"
+                          further down in this file.
+                      -->
+                      <!--
+                      <Component Id='License' Guid='*' Win64='$(var.Win64)'>
+                          <File Id='LicenseFile' Name='ChangeMe' DiskId='1' Source='C:\Path\To\File' KeyPath='yes'/>
+                      </Component>
+                      -->
 
-                    <Directory Id='Lib' Name='plugins'>
-                        <Component Id='PluginsPath' Guid='A361A0A3-9E06-4AF9-8B70-0FA53A456916' Win64='$(var.Win64)' KeyPath='yes'>
-                            <Environment
-                                Id='PluginsPATH'
-                                Name='WOOTING_ANALOG_SDK_PLUGINS_PATH'
-                                Value='[Lib]'
-                                Permanent='no'
-                                Part='last'
-                                Action='set'
-                                System='yes'/>
-                        </Component>
-                        <Component Id='wooting_analog_pluginLib' Guid='*' Win64='$(var.Win64)'>
-                            <File
-                                Id='wooting_analog_pluginDLL'
-                                Name='wooting_analog_plugin.dll'
-                                DiskId='1'
-                                Source='target\release\wooting_analog_plugin.dll'
-                                KeyPath='yes'/>
-                        </Component>
-                    </Directory>
-                </Directory>
+                      <!--<Component Id='PluginsPath' Guid='A361A0A3-9E06-4AF9-8B70-0FA53A456916' Win64='$(var.Win64)' KeyPath='yes'>
+                          <Environment
+                              Id='PluginsPATH'
+                              Name='WOOTING_ANALOG_SDK_PLUGINS_PATH'
+                              Value='[Lib]'
+                              Permanent='no'
+                              Part='last'
+                              Action='set'
+                              System='yes'/>
+                      </Component>-->
+                      <Component Id='wooting_analog_pluginLib' Guid='*' Win64='$(var.Win64)'>
+                          <RemoveFolder Id="RemovePluginDir" Directory="APPLICATIONFOLDER" On="uninstall"/>
+                          <File
+                              Id='wooting_analog_pluginDLL'
+                              Name='wooting_analog_plugin.dll'
+                              DiskId='1'
+                              Source='target\release\wooting_analog_plugin.dll'
+                              KeyPath='yes'/>
+                      </Component>
+                  </Directory>
+              </Directory>
             </Directory>
         </Directory>
 
@@ -111,10 +112,10 @@
             Title='Plugin'
             Description='Installs the Wooting Analog plugin'
             Level='1'
-            ConfigurableDirectory='APPLICATIONFOLDER'
             AllowAdvertise='no'
             Display='expand'
             Absent='disallow'>
+            <!--ConfigurableDirectory='APPLICATIONFOLDER'-->
             
             <!--
               Uncomment the following `ComponentRef` tag to add the license
@@ -129,7 +130,7 @@
                 Description='Add the install location of the [ProductName] executable to the PATH system environment variable. This allows the [ProductName] executable to be called from any location.'
                 Level='1'
                 Absent='allow'>-->
-                <ComponentRef Id='PluginsPath'/>
+                <!--<ComponentRef Id='PluginsPath'/>-->
             <!--</Feature>-->
         </Feature>
 
