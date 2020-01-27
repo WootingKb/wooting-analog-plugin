@@ -159,7 +159,7 @@ impl DeviceImplementation for WootingTwo {
 
 /// A fully contained device which uses `device_impl` to interface with the `device`
 struct Device {
-    pub device_info: DeviceInfoPointer,
+    pub device_info: DeviceInfo,
     buffer: Arc<Mutex<HashMap<c_ushort, c_float>>>,
     connected: Arc<AtomicBool>,
     pressed_keys: Vec<u16>
@@ -212,12 +212,11 @@ impl Device {
                 device_info: DeviceInfo::new_with_id(
                     device_info.vendor_id,
                     device_info.product_id,
-                    device_info.manufacturer_string.as_ref().unwrap(),
-                    device_info.product_string.as_ref().unwrap(),
+                    device_info.manufacturer_string.as_ref().unwrap().clone(),
+                    device_info.product_string.as_ref().unwrap().clone(),
                     id_hash,
                     DeviceType::Keyboard
-                )
-                .convert_to_ptr(),
+                ),
                 connected,
                 buffer,
                 pressed_keys: vec!()
@@ -260,7 +259,7 @@ impl Drop for Device {
 
 pub struct WootingPlugin {
     initialised: bool,
-    device_event_cb: Arc<Mutex<Option<extern "C" fn(DeviceEventType, DeviceInfoPointer)>>>,
+    device_event_cb: Arc<Mutex<Option<Box<dyn Fn(DeviceEventType, &DeviceInfo) + Send>>>>,
     devices: Arc<Mutex<HashMap<DeviceID, Device>>>,
     timer: Timer,
     worker_guard: Option<Guard>
@@ -279,7 +278,7 @@ impl WootingPlugin {
     }
     
     fn init_worker(&mut self) -> SDKResult<u32> {
-        let init_device_closure = |hid: &HidApi, devices: &Arc<Mutex<HashMap<DeviceID, Device>>>, device_event_cb: &Arc<Mutex<Option<extern "C" fn(DeviceEventType, DeviceInfoPointer)>>>, device_impls: &Vec<Box<dyn DeviceImplementation>>| {
+        let init_device_closure = |hid: &HidApi, devices: &Arc<Mutex<HashMap<DeviceID, Device>>>, device_event_cb: &Arc<Mutex<Option<Box<dyn Fn(DeviceEventType, &DeviceInfo) + Send>>>>, device_impls: &Vec<Box<dyn DeviceImplementation>>| {
             for device_info in hid.devices() {
                 //debug!("{:?}", device_info);
                 for device_impl in device_impls.iter() {
@@ -301,11 +300,8 @@ impl WootingPlugin {
                                     "Found and opened the {:?} successfully!",
                                     device_info.product_string
                                 );
-                                let deviceInfo = {
-                                    devices.lock().unwrap().get(&id).unwrap().device_info.clone()
-                                };
 
-                                device_event_cb.lock().unwrap().and_then(|cb| {cb(DeviceEventType::Connected, deviceInfo);Some(0)});
+                                device_event_cb.lock().unwrap().as_ref().and_then(|cb| {cb(DeviceEventType::Connected, devices.lock().unwrap().get(&id).unwrap().device_info.borrow());Some(0)});
                             },
                             Err(e) => {
                                 error!("Error opening HID Device: {}", e);
@@ -345,11 +341,8 @@ impl WootingPlugin {
                     }
 
                     for id in disconnected.iter() {
-                        let deviceInfo = {
-                            let device = t_devices.lock().unwrap().remove(id).unwrap();
-                            device.device_info.clone()
-                        };
-                        t_device_event_cb.lock().unwrap().and_then(|cb| {cb(DeviceEventType::Disconnected, deviceInfo);Some(0)});
+                        let device = t_devices.lock().unwrap().remove(id).unwrap();
+                        t_device_event_cb.lock().unwrap().as_ref().and_then(|cb| {cb(DeviceEventType::Disconnected, &device.device_info);Some(0)});
                     }
                 }
 
@@ -369,7 +362,7 @@ impl Plugin for WootingPlugin {
         Ok(PLUGIN_NAME).into()
     }
 
-    fn initialise(&mut self, callback: extern "C" fn(DeviceEventType, DeviceInfoPointer)) -> SDKResult<u32> {
+    fn initialise(&mut self, callback: Box<dyn Fn(DeviceEventType, &DeviceInfo) + Send>) -> SDKResult<u32> {
         env_logger::try_init();
 
 
@@ -484,7 +477,7 @@ impl Plugin for WootingPlugin {
         }
     }
 
-    fn device_info(&mut self) -> SDKResult<Vec<DeviceInfoPointer>> {
+    fn device_info(&mut self) -> SDKResult<Vec<DeviceInfo>> {
         if !self.initialised {
             return WootingAnalogResult::UnInitialized.into();
         }
