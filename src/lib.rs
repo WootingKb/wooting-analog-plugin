@@ -32,7 +32,6 @@ struct DeviceHardwareID {
     vid: u16,
     pid: u16,
     usage_page: u16,
-    interface_n: i32,
 }
 
 /// Trait which defines how the Plugin can communicate with a particular device
@@ -51,10 +50,7 @@ trait DeviceImplementation: objekt::Clone + Send {
             {
                 //if it is, check if they are the same
                 device.usage_page.eq(&hid.usage_page)
-            } else {
-                //otherwise, check if the defined interface number is correct
-                (hid.interface_n.eq(&device.interface_number))
-            }
+            } else { true }
     }
 
     /// Convert the given raw `value` into the appropriate float value. The given value should be 0.0f-1.0f
@@ -120,12 +116,10 @@ impl DeviceImplementation for WootingOne {
             vid: 0x03EB,
             pid: 0xFF01,
 
-            #[cfg(linux)]
+            #[cfg(target_os = "linux")]
             usage_page: 0,
-            #[cfg(not(linux))]
+            #[cfg(not(target_os = "linux"))]
             usage_page: 0xFF54,
-
-            interface_n: 6,
         }
     }
 
@@ -143,12 +137,10 @@ impl DeviceImplementation for WootingTwo {
             vid: 0x03EB,
             pid: 0xFF02,
 
-            #[cfg(linux)]
+            #[cfg(target_os = "linux")]
             usage_page: 0,
-            #[cfg(not(linux))]
+            #[cfg(not(target_os = "linux"))]
             usage_page: 0xFF54,
-
-            interface_n: 6,
         }
     }
 
@@ -279,13 +271,23 @@ impl WootingPlugin {
     
     fn init_worker(&mut self) -> SDKResult<u32> {
         let init_device_closure = |hid: &HidApi, devices: &Arc<Mutex<HashMap<DeviceID, Device>>>, device_event_cb: &Arc<Mutex<Option<Box<dyn Fn(DeviceEventType, &DeviceInfo) + Send>>>>, device_impls: &Vec<Box<dyn DeviceImplementation>>| {
-            for device_info in hid.devices() {
-                //debug!("{:?}", device_info);
+            let mut device_infos = hid.devices().clone();
+            #[cfg(target_os = "linux")]
+            {
+                device_infos.sort_by(|a, b| a.product_id.cmp(&b.product_id).then(a.vendor_id.cmp(&b.vendor_id)).then(a.interface_number.cmp(&b.interface_number)));
+                device_infos.reverse();
+
+            }
+//                device_infos.dedup_by(|a,b| a.vendor_id.eq(&b.vendor_id) && a.product_id.eq(&b.vendor_id));
+            for device_info in device_infos.iter() {
+//                debug!("{:?}", device_info);
                 for device_impl in device_impls.iter() {
                     if device_impl.matches(device_info)
                         && !devices.lock().unwrap()
                         .contains_key(&device_impl.get_device_id(device_info))
                     {
+
+
                         info!("Found device impl match: {:?}", device_info);
                         match device_info.open_device(&hid) {
                             Ok(dev) => {
@@ -315,7 +317,11 @@ impl WootingPlugin {
 
         let device_impls: Vec<Box<dyn DeviceImplementation>> = vec![Box::new(WootingOne()), Box::new(WootingTwo())];
         let mut hid = match HidApi::new() {
-            Ok(api) => {
+            Ok(mut api) => {
+                //An attempt at trying to ensure that all the devices have been found in the initialisation of the plugins
+                if let Err(e) = api.refresh_devices() {
+                    error!("We got error while refreshing devices. Err: {}", e);
+                }
                 api
             }
             Err(e) => {
