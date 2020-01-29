@@ -278,7 +278,7 @@ impl WootingPlugin {
                 device_infos.reverse();
 
             }
-//                device_infos.dedup_by(|a,b| a.vendor_id.eq(&b.vendor_id) && a.product_id.eq(&b.vendor_id));
+
             for device_info in device_infos.iter() {
 //                debug!("{:?}", device_info);
                 for device_impl in device_impls.iter() {
