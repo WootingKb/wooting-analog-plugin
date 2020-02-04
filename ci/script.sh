@@ -11,7 +11,8 @@ main() {
 
     #cross build --target $TARGET
     #cross build --target $TARGET --release
-    $cargo build --target $TARGET --release
+    # $cargo build --target $TARGET --release
+    cargo check
 
 
     if [ ! -z $DISABLE_TESTS ]; then
