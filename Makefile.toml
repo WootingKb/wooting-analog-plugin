@@ -1,19 +1,19 @@
-[tasks.install]
+[tasks.install-plugin]
 script_runner = "@shell"
 script = [
 '''
 sudo mkdir -p "${PLUGIN_INSTALL_PATH}"
 sudo mkdir -p "${PLUGIN_INSTALL_PATH}/wooting-analog-plugin"
 
-sudo cp "./target/debug/${TEST_PLUGIN_FILENAME}" "${PLUGIN_INSTALL_PATH}/wooting-analog-plugin/${TEST_PLUGIN_FILENAME}"
+sudo cp "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/target/debug/${TEST_PLUGIN_FILENAME}" "${PLUGIN_INSTALL_PATH}/wooting-analog-plugin/${TEST_PLUGIN_FILENAME}"
 '''
 ]
 dependencies = ["build"]
 
-[tasks.install.linux]
+[tasks.install-plugin.linux]
 env = {TEST_PLUGIN_FILENAME="libwooting_analog_plugin.so",PLUGIN_INSTALL_PATH="/usr/local/share/WootingAnalogPlugins"}
 
-[tasks.install.windows]
+[tasks.install-plugin.windows]
 env = {TEST_PLUGIN_FILENAME="wooting_analog_plugin.dll",PLUGIN_INSTALL_PATH="C:\\Program Files\\WootingAnalogPlugins"}
 script_runner = "powershell"
 script_extension = "ps1"
@@ -26,6 +26,6 @@ Start-Process PowerShell.exe -ArgumentList $command -Wait -Verb RunAs
 '''
 ]
 
-[tasks.install-test-plugin.mac]
+[tasks.install-plugin.mac]
 env = {TEST_PLUGIN_FILENAME="libwooting_analog_plugin.dylib",PLUGIN_INSTALL_PATH="/Library/WootingAnalogPlugins"}
 
