@@ -206,10 +206,9 @@ impl Device {
                     device_info.product_id(),
                     device_info
                         .manufacturer_string()
-                        .as_ref()
-                        .unwrap()
+                        .unwrap_or("ERR COULD NOT BE FOUND")
                         .to_string(),
-                    device_info.product_string().as_ref().unwrap().to_string(),
+                    device_info.product_string().unwrap_or("ERR COULD NOT BE FOUND").to_string(),
                     id_hash,
                     DeviceType::Keyboard,
                 ),
