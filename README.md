@@ -14,8 +14,8 @@ This plugin is packaged with the [Wooting Analog SDK installer](https://github.c
 If you wish to install it manually, download it from the [releases](https://github.com/WootingKb/wooting-analog-plugin/releases), you'll need to put it into a sub-directory of the `WootingAnalogPlugins` directory.
 So it should look something like this:
 
-| OS      | Install Path                                                                              |
-|---------|-------------------------------------------------------------------------------------------|
-| Windows | `C:\Program Files\WootingAnalogPlugins\wooting-analog-plugin\wooting_analog_plugin.dll`   |
-| Linux   | `/usr/local/share/WootingAnalogPlugins/wooting-analog-plugin/libwooting_analog_plugin.so` |
-| Mac     | `/Library/WootingAnalogPlugins/wooting-analog-plugin/libwooting_analog_plugin.dylib`      |
+| OS      | Install Path                                                                                 |
+|---------|----------------------------------------------------------------------------------------------|
+| Windows | `C:\Program Files\WootingAnalogPlugins\wooting-analog-plugin\wooting_analog_plugin.dll`      |
+| Linux   | `/usr/local/share/WootingAnalogPlugins/wooting-analog-plugin/libwooting_analog_plugin.so`    |
+| Mac     | `/usr/local/share/WootingAnalogPlugins/wooting-analog-plugin/libwooting_analog_plugin.dylib` |
