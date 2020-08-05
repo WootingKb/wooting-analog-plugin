@@ -10,15 +10,15 @@ homepage = "https://github.com/WootingKb/wooting-analog-plugin"
 readme = "README.md"
 
 [dependencies]
-log = "0.4.7"
+log = "^0.4"
 # For dev
 #wooting-analog-plugin-dev = { path = "../wooting-analog-plugin-dev"}
-wooting-analog-plugin-dev = "0.4.0"
-hidapi = { version = "1.0.1", features = ["linux-static-hidraw"], default-features = false }
-env_logger = "0.6.2"
-objekt = "0.1.2"
-timer = "0.2.0"
-chrono = "0.4.9"
+wooting-analog-plugin-dev = "^0.4"
+hidapi = { version = "^1.2", features = ["linux-static-hidraw"], default-features = false }
+env_logger = "^0.7"
+objekt = "^0.1"
+timer = "^0.2"
+chrono = "^0.4"
 
 [lib]
 crate-type = ["cdylib"]
