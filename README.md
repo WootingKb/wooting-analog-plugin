@@ -4,8 +4,6 @@
 
 This is Wooting's plugin for the [Analog SDK](https://github.com/simon-wh/Analog-SDK) providing easily extensible support for the Wooting One and Wooting Two.
 
-NOTE: At the moment you need an beta firmware for the Wooting One and Wooting Two which is currently packaged with the Wootility Beta.
-
 ## Getting Started
 **The easiest way to get the plugin is through installing it & updating it through Wootility (Currently Windows only)**
 
