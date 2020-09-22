@@ -16,11 +16,11 @@ use std::collections::HashMap;
 use std::os::raw::{c_float, c_ushort};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 use std::{str, thread};
 use timer::{Guard, Timer};
 use wooting_analog_plugin_dev::wooting_analog_common::*;
 use wooting_analog_plugin_dev::*;
-//use std::thread::JoinHandle;
 
 extern crate env_logger;
 
@@ -153,7 +153,8 @@ struct Device {
     pub device_info: DeviceInfo,
     buffer: Arc<Mutex<HashMap<c_ushort, c_float>>>,
     connected: Arc<AtomicBool>,
-    pressed_keys: Vec<u16>, //worker: JoinHandle<i32>
+    pressed_keys: Vec<u16>,
+    worker: Option<JoinHandle<i32>>,
 }
 unsafe impl Send for Device {}
 
@@ -169,7 +170,7 @@ impl Device {
             Arc::new(Mutex::new(Default::default()));
         let connected = Arc::new(AtomicBool::new(true));
 
-        let _worker = {
+        let worker = {
             let t_buffer = Arc::clone(&buffer);
             let t_connected = Arc::clone(&connected);
 
@@ -208,13 +209,17 @@ impl Device {
                         .manufacturer_string()
                         .unwrap_or("ERR COULD NOT BE FOUND")
                         .to_string(),
-                    device_info.product_string().unwrap_or("ERR COULD NOT BE FOUND").to_string(),
+                    device_info
+                        .product_string()
+                        .unwrap_or("ERR COULD NOT BE FOUND")
+                        .to_string(),
                     id_hash,
                     DeviceType::Keyboard,
                 ),
                 connected,
                 buffer,
-                pressed_keys: vec![], //worker
+                pressed_keys: vec![],
+                worker: Some(worker),
             },
         )
     }
@@ -247,7 +252,11 @@ impl Drop for Device {
         //self.device_info.clone().drop();
         //Set the device to connected so the thread will stop if it hasn't already
         self.connected.store(false, Ordering::Relaxed);
-        //self.worker.join().expect("Couldn't join on the associated thread");
+        if let Some(worker) = self.worker.take() {
+            worker
+                .join()
+                .expect("Couldn't join on the associated thread");
+        }
     }
 }
 
@@ -416,8 +425,9 @@ impl Plugin for WootingPlugin {
 
     fn unload(&mut self) {
         info!("{} unloaded", PLUGIN_NAME);
-        //TODO: drop devices
-
+        self.devices.lock().unwrap().drain();
+        drop(self.worker_guard.take());
+        self.initialised = false;
         //for dev in self.devices.clone().unwrap().drain(..) {
         //handle_device_event(self.device_event_cb.lock().unwrap().borrow(), &dev, DeviceEventType::Disconnected);
         //}
