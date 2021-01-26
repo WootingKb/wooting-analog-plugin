@@ -45,14 +45,7 @@ trait DeviceImplementation: objekt::Clone + Send {
         //Check if the pid & hid match
         device.product_id().eq(&hid.pid)
             && device.vendor_id().eq(&hid.vid)
-            && if device.usage_page() != 0 && hid.usage_page != 0
-            //check if the usage_page is valid to check
-            {
-                //if it is, check if they are the same
-                device.usage_page().eq(&hid.usage_page)
-            } else {
-                true
-            }
+            && device.usage_page().eq(&hid.usage_page)
     }
 
     /// Convert the given raw `value` into the appropriate float value. The given value should be 0.0f-1.0f
@@ -61,10 +54,6 @@ trait DeviceImplementation: objekt::Clone + Send {
     }
 
     /// Get the current set of pressed keys and their analog values from the given `device`. Using `buffer` to read into
-    ///
-    /// # Notes
-    /// `buffer` is used to prevent continually allocating & deallocating memory and so that HID `read_timeout` can be used with
-    /// `0` time to get data async without having cases where you end up with an empty buffer because the read wasn't fast enough
     ///
     /// `max_length` is not the max length of the report, it is the max number of key + analog value pairs to read
     fn get_analog_buffer(
@@ -114,10 +103,6 @@ impl DeviceImplementation for WootingOne {
         DeviceHardwareID {
             vid: 0x03EB,
             pid: 0xFF01,
-
-            #[cfg(target_os = "linux")]
-            usage_page: 0,
-            #[cfg(not(target_os = "linux"))]
             usage_page: 0xFF54,
         }
     }
@@ -135,10 +120,6 @@ impl DeviceImplementation for WootingTwo {
         DeviceHardwareID {
             vid: 0x03EB,
             pid: 0xFF02,
-
-            #[cfg(target_os = "linux")]
-            usage_page: 0,
-            #[cfg(not(target_os = "linux"))]
             usage_page: 0xFF54,
         }
     }
@@ -289,19 +270,8 @@ impl WootingPlugin {
             >,
              device_impls: &Vec<Box<dyn DeviceImplementation>>| {
                 let mut device_infos: Vec<&DeviceInfoHID> = hid.device_list().collect();
-                #[cfg(target_os = "linux")]
-                {
-                    device_infos.sort_by(|a, b| {
-                        a.product_id()
-                            .cmp(&b.product_id())
-                            .then(a.vendor_id().cmp(&b.vendor_id()))
-                            .then(a.interface_number().cmp(&b.interface_number()))
-                    });
-                    device_infos.reverse();
-                }
 
                 for device_info in device_infos.iter() {
-                    //                debug!("{:?}", device_info);
                     for device_impl in device_impls.iter() {
                         if device_impl.matches(device_info)
                             && !devices
