@@ -2,10 +2,9 @@
 script_runner = "@shell"
 script = [
 '''
-sudo mkdir -p "${PLUGIN_INSTALL_PATH}"
-sudo mkdir -p "${PLUGIN_INSTALL_PATH}/wooting-analog-plugin"
 
-sudo cp "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/target/debug/${TEST_PLUGIN_FILENAME}" "${PLUGIN_INSTALL_PATH}/wooting-analog-plugin/${TEST_PLUGIN_FILENAME}"
+echo "Installing wooting plugin to ${PLUGIN_INSTALL_PATH}/wooting-analog-plugin"
+sudo install -Dm755 "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/target/debug/${TEST_PLUGIN_FILENAME}" "${PLUGIN_INSTALL_PATH}/wooting-analog-plugin/${TEST_PLUGIN_FILENAME}"
 '''
 ]
 dependencies = ["build"]
