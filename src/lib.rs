@@ -26,6 +26,7 @@ extern crate env_logger;
 
 const ANALOG_BUFFER_SIZE: usize = 48;
 const ANALOG_MAX_SIZE: usize = 40;
+const WOOTING_VID: u16 = 0x31e3;
 
 /// Struct holding the information we need to find the device and the analog interface
 struct DeviceHardwareID {
@@ -126,6 +127,23 @@ impl DeviceImplementation for WootingTwo {
 
     fn analog_value_to_float(&self, value: u8) -> f32 {
         ((f32::from(value) * 1.2) / 255_f32).min(1.0)
+    }
+}
+
+#[derive(Debug, Clone)]
+struct WootingLekker();
+
+impl DeviceImplementation for WootingLekker {
+    fn device_hardware_id(&self) -> DeviceHardwareID {
+        DeviceHardwareID {
+            vid: WOOTING_VID,
+            pid: 0x1210,
+            usage_page: 0xFF54,
+        }
+    }
+
+    fn analog_value_to_float(&self, value: u8) -> f32 {
+        (f32::from(value)) / 255_f32
     }
 }
 
@@ -317,8 +335,11 @@ impl WootingPlugin {
                 }
             };
 
-        let device_impls: Vec<Box<dyn DeviceImplementation>> =
-            vec![Box::new(WootingOne()), Box::new(WootingTwo())];
+        let device_impls: Vec<Box<dyn DeviceImplementation>> = vec![
+            Box::new(WootingOne()),
+            Box::new(WootingTwo()),
+            Box::new(WootingLekker()),
+        ];
         let mut hid = match HidApi::new() {
             Ok(mut api) => {
                 //An attempt at trying to ensure that all the devices have been found in the initialisation of the plugins
