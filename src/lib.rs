@@ -147,6 +147,23 @@ impl DeviceImplementation for WootingLekker {
     }
 }
 
+#[derive(Debug, Clone)]
+struct WootingTwoHE();
+
+impl DeviceImplementation for WootingTwoHE {
+    fn device_hardware_id(&self) -> DeviceHardwareID {
+        DeviceHardwareID {
+            vid: WOOTING_VID,
+            pid: 0x1220,
+            usage_page: 0xFF54,
+        }
+    }
+
+    fn analog_value_to_float(&self, value: u8) -> f32 {
+        (f32::from(value)) / 255_f32
+    }
+}
+
 /// A fully contained device which uses `device_impl` to interface with the `device`
 struct Device {
     pub device_info: DeviceInfo,
@@ -339,6 +356,7 @@ impl WootingPlugin {
             Box::new(WootingOne()),
             Box::new(WootingTwo()),
             Box::new(WootingLekker()),
+            Box::new(WootingTwoHE()),
         ];
         let mut hid = match HidApi::new() {
             Ok(mut api) => {
