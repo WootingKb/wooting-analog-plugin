@@ -1,8 +1,11 @@
 [![Build Status](https://travis-ci.com/WootingKb/wooting-analog-plugin.svg?branch=develop)](https://travis-ci.com/WootingKb/wooting-analog-plugin)
 
+# NOTICE
+**This plugin has been merged into the primary [Analog SDK](https://github.com/WootingKb/wooting-analog-sdk/tree/develop/wooting-analog-plugin) repo, all further changes will take place in there**
+
 # Wooting Analog SDK Plugin
 
-This is Wooting's plugin for the [Analog SDK](https://github.com/simon-wh/Analog-SDK) providing easily extensible support for the Wooting One and Wooting Two.
+This is Wooting's plugin for the [Analog SDK](https://github.com/WootingKb/wooting-analog-sdk) providing easily extensible support for the Wooting One and Wooting Two.
 
 ## Getting Started
 **The easiest way to get the plugin is through installing it & updating it through Wootility (Currently Windows only)**
